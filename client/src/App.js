@@ -1,31 +1,58 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import io from 'socket.io-client';
-import shortId from 'shortid';
+import shortid from 'shortid';
+
 const App = () => {
 	const [socket, setSocket] = useState(null);
 	const [tasks, setTasks] = useState([]);
 	const [taskName, setTaskName] = useState('');
-	const id = shortId();
+	const shortId = shortid.generate();
 
 	useEffect(() => {
 		const socket = io('http://localhost:8000');
 		setSocket(socket);
+
+		socket.on('updateData', (tasks) => {
+			updateTasks(tasks);
+		});
+
+		socket.on('removeTask', (taskId) => {
+			removeTask(taskId);
+		});
+
+		socket.on('addTask', (taskId) => {
+			addTask(taskId);
+		});
+		// remove double render of addTask
+		return () => {
+			socket.disconnect();
+		};
 	}, []);
 
-	const removeTask = (taskId) => {
-		setTasks((tasks) => tasks.filter((task) => task.id !== taskId));
+	const updateTasks = (tasks) => {
+		setTasks(tasks);
 	};
 
-	const submitForm = (e) => {
-		e.preventDefault();
-		const newTask = { name: taskName, id: id };
-		addTask(newTask);
-		socket.emit('addTask', newTask);
-		setTaskName('');
+	const removeTask = (taskId, localRemoval) => {
+		setTasks((tasks) => tasks.filter((task) => task.id !== taskId));
+		if (localRemoval) {
+			socket.emit('removeTask', taskId);
+		}
 	};
 
 	const addTask = (newTask) => {
 		setTasks((tasks) => [...tasks, newTask]);
+	};
+
+	const submitForm = (e) => {
+		e.preventDefault();
+		const newTask = {
+			name: taskName,
+			id: shortId,
+		};
+		addTask(newTask);
+		socket.emit('addTask', newTask);
+		setTaskName('');
 	};
 
 	return (
@@ -42,7 +69,7 @@ const App = () => {
 							{task.name}
 							<button
 								className="btn btn--red"
-								onClick={() => removeTask(task.id)}
+								onClick={() => removeTask(task.id, true)}
 							>
 								Remove
 							</button>
@@ -53,7 +80,7 @@ const App = () => {
 				<form id="add-task-form" onSubmit={submitForm}>
 					<input
 						className="text-input"
-						autocomplete="off"
+						autoComplete="off"
 						type="text"
 						placeholder="Type your description"
 						id="task-name"
