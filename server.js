@@ -1,5 +1,6 @@
 const express = require('express');
 const app = express();
+const socket = require('socket.io');
 
 const tasks = [];
 
@@ -9,11 +10,11 @@ const server = app.listen(process.env.PORT || 8000, () => {
 const io = socket(server);
 
 io.on('connection', (socket) => {
-	socket.emit('updateData', { tasks: tasks });
+	socket.emit('updateData', tasks);
 
 	socket.on('addTask', (task) => {
-		tasks.push({ name: task.name, id: task.id });
-		socket.broadcast.emit('addTask', { name: task.name, id: task.id });
+		tasks.push(task);
+		socket.broadcast.emit('addTask', task);
 	});
 
 	socket.on('removeTask', (id) => {
@@ -21,10 +22,7 @@ io.on('connection', (socket) => {
 		if (taskIndex !== -1) {
 			tasks.splice(taskIndex, 1);
 		}
-		socket.broadcast.emit('addTask', {
-			name: task.name,
-			id: task.id,
-		});
+		socket.broadcast.emit('removeTask', id);
 	});
 });
 
